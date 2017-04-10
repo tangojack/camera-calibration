@@ -1,5 +1,6 @@
-# Folders
-assignment4_demo/
-assignment4_sampleprojects/
-assignment4_template/
-!Assignment4.cpp
+# Ignore everything
+*
+
+# But not these files...
+!.gitignore
+!assignment4_template/assignment4_template/Assignment4.cpp
