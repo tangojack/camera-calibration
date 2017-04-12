@@ -51,7 +51,7 @@ BOOL CCamera::Calibrate(const vector<C2DPoint*>& src2D, const vector<C3DPoint*>&
     // Begin your code here
     
     // Step 1: Classify the input 3D points into points on the x-z planes, points on
-    //         the y-z plane, and points not on any calibration plane
+    //         the y-z plane, and points not on any calibration planes
     vector<C3DPoint*> src3Dxz;
     vector<C2DPoint*> src2Dxz;
     vector<C3DPoint*> src3Dyz;
@@ -69,41 +69,72 @@ BOOL CCamera::Calibrate(const vector<C2DPoint*>& src2D, const vector<C3DPoint*>&
     }
     // Step 2: Estimate a plane-to-plane projectivity for each of the calibration planes
     //         using the input 2D/3D point pairs
-    CMatrix<double> Axz(8,9), Uxz, Dxz, Vxz;
-    for (int i = 0; i < 8; i=i+2){
-        Axz(i,0) = src3Dxz[i]->x;
-        Axz(i,1) = src3Dxz[i]->z;
-        Axz(i,2) = 1;
-        Axz(i,3) = 0;
-        Axz(i,4) = 0;
-        Axz(i,5) = 0;
-        Axz(i,6) = -src2Dxz[i]->x * src3Dxz[i]->x;
-        Axz(i,7) = -src2Dxz[i]->x * src3Dxz[i]->z;
-        Axz(i,8) = -src2Dxz[i]->x;
+    CMatrix<double> b(8,1);
 
-        Axz(i+1,0) = src3Dxz[i]->x;
-        Axz(i+1,1) = src3Dxz[i]->z;
-        Axz(i+1,2) = 1;
-        Axz(i+1,3) = 0;
-        Axz(i+1,4) = 0;
-        Axz(i+1,5) = 0;
-        Axz(i+1,6) = -src2Dxz[i]->x * src3Dxz[i]->x;
-        Axz(i+1,7) = -src2Dxz[i]->x * src3Dxz[i]->z;
-        Axz(i+1,8) = -src2Dxz[i]->x;
+    CMatrix<double> Axz(8,8), Uxz, Dxz, Vxz;
+    for (int i = 0; i < src3Dxz.size(); i++){
+        Axz(i*2,0) = src3Dxz[i]->x;
+        Axz(i*2,1) = src3Dxz[i]->z;
+        Axz(i*2,2) = 1;
+        Axz(i*2,3) = 0;
+        Axz(i*2,4) = 0;
+        Axz(i*2,5) = 0;
+        Axz(i*2,6) = -src2Dxz[i]->x * src3Dxz[i]->x;
+        Axz(i*2,7) = -src2Dxz[i]->x * src3Dxz[i]->z;
+        b(i*2,0) = -src2Dxz[i]->x;
+        
+        Axz(i*2+1,0) = src3Dxz[i]->x;
+        Axz(i*2+1,1) = src3Dxz[i]->z;
+        Axz(i*2+1,2) = 1;
+        Axz(i*2+1,3) = 0;
+        Axz(i*2+1,4) = 0;
+        Axz(i*2+1,5) = 0;
+        Axz(i*2+1,6) = -src2Dxz[i]->x * src3Dxz[i]->x;
+        Axz(i*2+1,7) = -src2Dxz[i]->x * src3Dxz[i]->z;
+        b(i*2+1,0) = -src2Dxz[i]->y;
     }
-    Axz.SVD2(Uxz, Dxz, Vxz);
-    CMatrix<double> y(8,1);
-    for (int i = 0; i < 8; i++){
-        for (int j = 0; j < 8;  j++){
-            if (Uxz(i,j) == 1)
+    CMatrix<double> Axztran = Axz.Transpose();
+    CMatrix<double> temp = Axztran * Axz;
+    CMatrix<double> Axzcross = temp.Inverse() * Axztran;
+    CMatrix<double> p = Axzcross * b;
+    
+    int ctr = 0;
+    CMatrix<double> projXZ(3,3);
+    projXZ(2,2) = 1; 
+    for (int i = 0; i < 3; i++){
+        for (int j = 0; j < 3; j++){
+            if (i == 2 && j == 2)
+                break;
+            projXZ(i,j) = p(ctr++,0);
         }
     }
 
     // Step 3: Using the estimated plane-to-plane projectivities, assign 3D coordinates
     //         to all the detected corners on the calibration pattern
-
+    vector<C3DPoint*> corners3D;
+    vector<C2DPoint*> corners2D;
+    CMatrix<double> 3Dxz(3,1);
+    CMatrix<double> 2Dxz(3,1);
+    3Dxz(2,0) = 1;
+    double u;
+    double v;
+    double threshold;
+    for (int i = 0; i < src3Dxz.size(); i++){
+        3Dxz(0,0) = src3Dxz[i]->x;
+        3Dxz(1,0) = src3Dxz[i]->z;
+        2Dxz = projXZ * 3Dxz;
+        u = 2Dxz(0,0)/2Dxz(2,0);
+        v = 2Dxz(1,0)/2Dxz(2,0);
+        for (int j = 0; j < corners.size(); j++){
+            if (corners[j]->x - u < threshold && corners[j]->y - v < threshold){
+                corners3D.push_back(src3Dxz[i]);
+            }
+        }
+    }
     // Step 4: Estimate a 3x4 camera projection matrix from all the detected corners on
     //         the calibration pattern using linear least squares
+    
+    corners3D
 
     return TRUE;
 }
