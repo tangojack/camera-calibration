@@ -41,7 +41,7 @@ BOOL CCamera::Calibrate(const vector<C2DPoint*>& src2D, const vector<C3DPoint*>&
     //     vector<C2DPoint*>& corners    This contains a list of 2D coordinates for the detected corners.
     //
     // OUTPUT:
-    //     CMatrix<double>& pPrjMatrix   A 3x4 camera projection matrix computed from the detected corners.
+    //     CMatrix<double>& pPrjMatrix  A 3x4 camera projection matrix computed from the detected corners.
     //
     // Please refer to the tutorial for the usage of the related libraries.
 
@@ -57,7 +57,7 @@ BOOL CCamera::Calibrate(const vector<C2DPoint*>& src2D, const vector<C3DPoint*>&
     vector<C3DPoint*> src3Dyz;
     vector<C2DPoint*> src2Dyz;
 
-    for (int i = 0; i < src3D.size(); i++){
+    for (int i = 0; i < (int)src3D.size(); i++){
         if (src3D[i]->x == 0){
             src3Dyz.push_back(src3D[i]);
             src2Dyz.push_back(src2D[i]);
@@ -70,33 +70,33 @@ BOOL CCamera::Calibrate(const vector<C2DPoint*>& src2D, const vector<C3DPoint*>&
     // Step 2: Estimate a plane-to-plane projectivity for each of the calibration planes
     //         using the input 2D/3D point pairs
     CMatrix<double> b(8,1);
-
-    CMatrix<double> Axz(8,8), Uxz, Dxz, Vxz;
+    CMatrix<double> A;
+	A.SetSize(2*src3Dxz.size(),8,0);
     for (int i = 0; i < src3Dxz.size(); i++){
-        Axz(i*2,0) = src3Dxz[i]->x;
-        Axz(i*2,1) = src3Dxz[i]->z;
-        Axz(i*2,2) = 1;
-        Axz(i*2,3) = 0;
-        Axz(i*2,4) = 0;
-        Axz(i*2,5) = 0;
-        Axz(i*2,6) = -src2Dxz[i]->x * src3Dxz[i]->x;
-        Axz(i*2,7) = -src2Dxz[i]->x * src3Dxz[i]->z;
+        A(i*2,0) = src3Dxz[i]->x;
+        A(i*2,1) = src3Dxz[i]->z;
+        A(i*2,2) = 1;
+        A(i*2,3) = 0;
+        A(i*2,4) = 0;
+        A(i*2,5) = 0;
+        A(i*2,6) = -src2Dxz[i]->x * src3Dxz[i]->x;
+        A(i*2,7) = -src2Dxz[i]->x * src3Dxz[i]->z;
         b(i*2,0) = -src2Dxz[i]->x;
         
-        Axz(i*2+1,0) = src3Dxz[i]->x;
-        Axz(i*2+1,1) = src3Dxz[i]->z;
-        Axz(i*2+1,2) = 1;
-        Axz(i*2+1,3) = 0;
-        Axz(i*2+1,4) = 0;
-        Axz(i*2+1,5) = 0;
-        Axz(i*2+1,6) = -src2Dxz[i]->x * src3Dxz[i]->x;
-        Axz(i*2+1,7) = -src2Dxz[i]->x * src3Dxz[i]->z;
+        A(i*2+1,0) = src3Dxz[i]->x;
+        A(i*2+1,1) = src3Dxz[i]->z;
+        A(i*2+1,2) = 1;
+        A(i*2+1,3) = 0;
+        A(i*2+1,4) = 0;
+        A(i*2+1,5) = 0;
+        A(i*2+1,6) = -src2Dxz[i]->x * src3Dxz[i]->x;
+        A(i*2+1,7) = -src2Dxz[i]->x * src3Dxz[i]->z;
         b(i*2+1,0) = -src2Dxz[i]->y;
     }
-    CMatrix<double> Axztran = Axz.Transpose();
-    CMatrix<double> temp = Axztran * Axz;
-    CMatrix<double> Axzcross = temp.Inverse() * Axztran;
-    CMatrix<double> p = Axzcross * b;
+    CMatrix<double> Atran = A.Transpose();
+    CMatrix<double> temp = Atran * A;
+    CMatrix<double> Across = temp.Inverse() * Atran;
+    CMatrix<double> pXZ = Across * b;
     
     int ctr = 0;
     CMatrix<double> projXZ(3,3);
@@ -105,70 +105,166 @@ BOOL CCamera::Calibrate(const vector<C2DPoint*>& src2D, const vector<C3DPoint*>&
         for (int j = 0; j < 3; j++){
             if (i == 2 && j == 2)
                 break;
-            projXZ(i,j) = p(ctr++,0);
+            projXZ(i,j) = pXZ(ctr++,0);
+        }
+    }
+
+	A.SetSize(2*src3Dyz.size(),8,0);
+    for (int i = 0; i < src3Dyz.size(); i++){
+        A(i*2,0) = src3Dyz[i]->y;
+        A(i*2,1) = src3Dyz[i]->z;
+        A(i*2,2) = 1;
+        A(i*2,3) = 0;
+        A(i*2,4) = 0;
+        A(i*2,5) = 0;
+        A(i*2,6) = -src2Dyz[i]->y * src3Dyz[i]->y;
+        A(i*2,7) = -src2Dyz[i]->y * src3Dyz[i]->z;
+        b(i*2,0) = -src2Dxz[i]->y;
+        
+        A(i*2+1,0) = src3Dyz[i]->y;
+        A(i*2+1,1) = src3Dyz[i]->z;
+        A(i*2+1,2) = 1;
+        A(i*2+1,3) = 0;
+        A(i*2+1,4) = 0;
+        A(i*2+1,5) = 0;
+        A(i*2+1,6) = -src2Dyz[i]->x * src3Dyz[i]->x;
+        A(i*2+1,7) = -src2Dyz[i]->x * src3Dyz[i]->z;
+        b(i*2+1,0) = -src2Dyz[i]->y;
+    }
+    Atran = A.Transpose();
+    temp = Atran * A;
+    Across = temp.Inverse() * Atran;
+    CMatrix<double> pYZ = Across * b;
+    
+    ctr = 0;
+    CMatrix<double> projYZ(3,3);
+    projYZ(2,2) = 1; 
+    for (int i = 0; i < 3; i++){
+        for (int j = 0; j < 3; j++){
+            if (i == 2 && j == 2)
+                break;
+            projYZ(i,j) = pYZ(ctr++,0);
         }
     }
 
     // Step 3: Using the estimated plane-to-plane projectivities, assign 3D coordinates
     //         to all the detected corners on the calibration pattern
 
-    vector<C3DPoint*> 3DCornerXZ;
+    vector<C3DPoint*> CornerXZ3D;
     for (int i = 0; i < 5; i++){
     	for (int j = 0; j < 4; j++){
-    		C3DPoint* n = new C3DPoint();
-    		n->x = 0.5 + (i*2);
-    		n->y = 0;
-    		n->z = 0.5 + (j*2);
-    		3DCornerXZ.push_back(n);
+    		C3DPoint* n = new C3DPoint(0.5 + (i*2), 0, 0.5 + (j*2));
+    		CornerXZ3D.push_back(n);
     	}
     }
-    vector<C3DPoint*> 3DCornerYZ;
+    vector<C3DPoint*> CornerYZ3D;
     for (int i = 0; i < 5; i++){
     	for (int j = 0; j < 4; j++){
-    		C3DPoint* n = new C3DPoint();
-    		n->x = 0;
-    		n->y = 0.5 + (i*2);
-    		n->z = 0.5 + (j*2);
-    		3DCornerXZ.push_back(n);
+    		C3DPoint* n = new C3DPoint(0, 0.5 + (i*2), 0.5 + (j*2));
+    		CornerXZ3D.push_back(n);
     	}
     }
-    vector<C2DPoint*> 2DCornerFakeXZ;
-    //Apply the plane projection
-    for(int i = 0; i < 3DCornerXZ.size(); i++){
-    	CMatrix<double> temp(3,1);
-    	temp(0,0) = 3DCornerXZ[i]->x;
-    	temp(1,0) = 3DCornerXZ[i]->y;
-    	temp(2,0) = 3DCornerXZ[i]->z;
-		
-		CMatrix<double> 2Dxz(3,1);
-    	2Dxz = projXZ * temp;
-        u = 2Dxz(0,0)/2Dxz(2,0);
-        v = 2Dxz(1,0)/2Dxz(2,0);
 
-        2DCornerFakeXZ.push_back(new C2DPoint(u,v));
+    vector<C2DPoint*> CornerFakeXZ2D;
+	double u, v;
+	double threshold = 10;
+	//Apply the plane projection
+    for(int i = 0; i < CornerXZ3D.size(); i++){
+    	CMatrix<double> temp(3,1);
+    	temp(0,0) = CornerXZ3D[i]->x;
+    	temp(1,0) = CornerXZ3D[i]->y;
+    	temp(2,0) = CornerXZ3D[i]->z;
+		
+		CMatrix<double> xz2D(3,1);
+    	xz2D = projXZ * temp;
+        u = xz2D(0,0)/xz2D(2,0);
+        v = xz2D(1,0)/xz2D(2,0);
+        CornerFakeXZ2D.push_back(new C2DPoint(u,v));
     }
-    double threshold = 10;
-    for (int i = 0; i < 2DCornerFakeXZ.size(); i++){
-        u = 2DCornerFakeXZ[i]->x;
-        v = 2DCornerFakeXZ[i]->y;
+	vector<C2DPoint*> CornerFakeYZ2D;
+	for(int i = 0; i < CornerYZ3D.size(); i++){
+    	CMatrix<double> temp(3,1);
+    	temp(0,0) = CornerYZ3D[i]->x;
+    	temp(1,0) = CornerYZ3D[i]->y;
+    	temp(2,0) = CornerYZ3D[i]->z;
+		
+		CMatrix<double> yz2D(3,1);
+    	yz2D = projXZ * temp;
+        u = yz2D(0,0)/yz2D(2,0);
+        v = yz2D(1,0)/yz2D(2,0);
+        CornerFakeYZ2D.push_back(new C2DPoint(u,v));
+    }
+	
+	vector<C3DPoint*> corners3D;
+    for (int i = 0; i < CornerFakeXZ2D.size(); i++){
+        u = CornerFakeXZ2D[i]->x;
+        v = CornerFakeXZ2D[i]->y;
         for (int j = 0; j < corners.size(); j++){
             if (corners[j]->x - u < threshold && corners[j]->y - v < threshold){
-                corners3D.push_back(3DCornerXZ[i]);
+                corners3D.push_back(CornerXZ3D[i]);
+            }
+        }
+    }
+	vector<C2DPoint*> corners2D;
+    for (int i = 0; i < CornerFakeYZ2D.size(); i++){
+        u = CornerFakeYZ2D[i]->x;
+        v = CornerFakeYZ2D[i]->y;
+        for (int j = 0; j < corners.size(); j++){
+            if (corners[j]->x - u < threshold && corners[j]->y - v < threshold){
+                corners3D.push_back(CornerYZ3D[i]);
+				corners2D.push_back(corners[j]);
             }
         }
     }
     // Step 4: Estimate a 3x4 camera projection matrix from all the detected corners on
     //         the calibration pattern using linear least squares
-    
-    corners3D
-
+    A.SetSize(2*corners3D.size(),12,0);
+	CMatrix<double> U,D,V,P;
+	for (int i = 0; i < corners3D.size(); i++){
+        A(i*2,0) = corners3D[i]->x;
+        A(i*2,1) = corners3D[i]->y;
+		A(i*2,2) = corners3D[i]->z;
+        A(i*2,3) = 1;
+        A(i*2,4) = 0;
+        A(i*2,5) = 0;
+        A(i*2,6) = 0;
+		A(i*2,7) = 0;
+        A(i*2,8) = -corners2D[i]->x * corners3D[i]->x;
+        A(i*2,9) = -corners2D[i]->x * corners3D[i]->y;
+		A(i*2,10) = -corners2D[i]->x * corners3D[i]->y;
+        A(i*2,11) = -corners2D[i]->x;
+        
+        A(i*2+1,0) = 0;
+        A(i*2+1,1) = 0;
+        A(i*2+1,2) = 0;
+        A(i*2+1,3) = 0;
+        A(i*2+1,4) = corners3D[i]->x;
+        A(i*2+1,5) = corners3D[i]->y;
+		A(i*2+1,6) = corners3D[i]->z;
+        A(i*2+1,7) = 1;
+		A(i*2+1,8) = -corners2D[i]->x * corners3D[i]->x;
+        A(i*2+1,9) = -corners2D[i]->x * corners3D[i]->y;
+		A(i*2+1,10) = -corners2D[i]->x * corners3D[i]->y;
+        A(i*2+1,11) = -corners2D[i]->x;
+    }
+	A.SVD2(U,D,V);
+	P = V.SubMat(0,11,11,11);
+	ctr = 0;
+    matPrj(2,3) = 1; 
+    for (int i = 0; i < 3; i++){
+        for (int j = 0; j < 4; j++){
+            if (i == 2 && j == 3)
+                break;
+            matPrj(i,j) = P(ctr++,0);
+        }
+    }
     return TRUE;
 }
 
-void CCamera::Decompose(const CMatrix<double>& prjMatrix, CMatrix<double>& prjK, CMatrix<double>& prjRt)
+void CCamera::Decompose(const CMatrix<double>& prjMatsrix, CMatrix<double>& prjK, CMatrix<double>& prjRt)
 {
     // INPUT:
-    //     CMatrix<double>& prjMatrix    This is a 3x4 camera projection matrix to be decomposed.
+    //     CMatrix<double>& prjMatsrix    This is a 3x4 camera projection matrix to be decomposed.
     //
     // OUTPUT:
     //     CMatrix<double>& prjK         This is the 3x3 camera calibration matrix K.
@@ -184,39 +280,48 @@ void CCamera::Decompose(const CMatrix<double>& prjMatrix, CMatrix<double>& prjK,
     // Begin your code here
     
     // Step 1: Decompose the 3x3 sub-matrix composed of the first 3 columns of
-    //         prjMatrix into the product of K and R using QR decomposition
-    CMatrix<double>	temp(3,3), trans(3,1);
-    CMatrix<double> Q(3,3), Rinv(3,3), Rdash(3,3), K(3,3);
-    temp = prjMatrix.SubMat(0,2,0,2);
-    T = prjMatrix.SubMat(0,2,3,3);
+    //         prjMatsrix into the product of K and R using QR decomposition
+    CMatrix<double>	temp(3,3), T(3,1);
+    CMatrix<double> Q(3,3), R(3,3), Rdash(3,3);
+    temp = prjMatsrix.SubMat(0,2,0,2);
+    T = prjMatsrix.SubMat(0,2,3,3);
     temp = temp.Inverse();
     temp.QR(Q,Rdash);
     R = Q.Transpose();
-    K = Rdash.Inverse();
+    prjK = Rdash.Inverse();
 
-    // Step 2: Compute the translation vector T from the last column of prjMatrix
+    // Step 2: Compute the translation vector T from the last column of prjMatsrix
 
     // Step 3: Normalize the 3x3 camera calibration matrix K
-    if (K(2,2) != 1){
+    if (prjK(2,2) != 1){
     	for (int i = 0; i < 3; i++){
         	for (int j = 0; j < 3; j++){
-            	K(i,j) = K(i,j)/K(2,2);
+            	prjK(i,j) = prjK(i,j)/prjK(2,2);
         	}
     	}
     }
-    if (K(0,0) < 0){
-    	K(0,0) = K(0,0) * -1;
+    if (prjK(0,0) < 0){
+    	prjK(0,0) = prjK(0,0) * -1;
     	for (int i = 0; i < 3; i++){
         	R(0,i) = R(0,i) * -1;
     	}
     }
-    if (K(1,1) < 0){
-    	K(0,1) = K(0,1) * -1;
-    	K(1,1) = K(1,1) * -1;
+    if (prjK(1,1) < 0){
+    	prjK(0,1) = prjK(0,1) * -1;
+    	prjK(1,1) = prjK(1,1) * -1;
     	for (int i = 0; i < 3; i++){
         	R(1,i) = R(1,i) * -1;
     	}
     }
+
+	for (int i = 0; i < 3; i++){
+		for (int j = 0; j < 3; j++){
+			prjRt(i,j) = R(i,j);
+		}
+	}
+	for (int j = 0; j < 3; j++){
+			prjRt(3,j) = T(j,0);
+	}
 
     return;
 }
@@ -228,7 +333,7 @@ void CCamera::Triangulate(const vector<CMatrix<double>*>& prjMats, const vector<
     //     vector<CMatrix<double>*> prjMats     A list of projection matrices
     //
     //     vector<vector<C2DPoint*>*> src2Ds    A list of image point lists, each image point list is in 1-to-1
-    //                                          correspondence with the projection matrix having the same index in prjMats.
+    //                                          correspondence with the projection matrix having the same index in prjMatss.
     //
     // OUTPUT:
     //     vector<C3DPoint*> res3D                A list of 3D coordinates for the triangulated points.
@@ -239,7 +344,7 @@ void CCamera::Triangulate(const vector<CMatrix<double>*>& prjMats, const vector<
     //      point, the corresponding element in src2Ds will be a Null vector. For example, if there are two images, 
     //      and we know 8 pairs of corresponding points, then
     //      
-    //            prjMats.size() = 2
+    //            prjMatss.size() = 2
     //            src2Ds.size() = 2
     //            src2Ds[k]->size() = 8           // k >= 0 and k < no. of images - 1
     //    
@@ -253,26 +358,24 @@ void CCamera::Triangulate(const vector<CMatrix<double>*>& prjMats, const vector<
 
     //////////////////////////
     // Begin your code here
-    vector<CMatrix<double>*> prjMatsInv;
-    prjMatsInv.push_back(prjMats[0].Inverse());
-    prjMatsInv.push_back(prjMats[1].Inverse());
 
-    for (int j = 0; j < 8; i++){
+	CMatrix<double> X;
+    for (int j = 0; j < 8; j++){
 		CMatrix<double> A(4,4), U, D, V;
-		if(src2Ds[0][j] != NULL && src2Ds[1][j] != NULL){
+		if((*src2Ds[0])[j] != NULL && (*src2Ds[1])[j] != NULL){
   			for (int i = 0; i < 2 ; i++){
-        		A(i*2,0) = src2Ds[i][j]->x * prjMat[i](2,0) - prjMat[i](0,0);
-        		A(i*2,1) = src2Ds[i][j]->x * prjMat[i](2,1) - prjMat[i](0,1);
-        		A(i*2,2) = src2Ds[i][j]->x * prjMat[i](2,2) - prjMat[i](0,2);
-        		A(i*2,3) = src2Ds[i][j]->x * prjMat[i](2,3) - prjMat[i](0,3);
+        		A(i*2,0) = (*src2Ds[i])[j]->x * (*prjMats[i])(2,0) - (*prjMats[i])(0,0);
+        		A(i*2,1) = (*src2Ds[i])[j]->x * (*prjMats[i])(2,1) - (*prjMats[i])(0,1);
+        		A(i*2,2) = (*src2Ds[i])[j]->x * (*prjMats[i])(2,2) - (*prjMats[i])(0,2);
+        		A(i*2,3) = (*src2Ds[i])[j]->x * (*prjMats[i])(2,3) - (*prjMats[i])(0,3);
         	
-       			A(i*2+1,0) = src2Ds[i][j]->y * prjMat[i](2,0) - prjMat[i](0,0);
-        		A(i*2+1,1) = src2Ds[i][j]->y * prjMat[i](2,1) - prjMat[i](0,1);
-        		A(i*2+1,2) = src2Ds[i][j]->y * prjMat[i](2,2) - prjMat[i](0,2);
-        		A(i*2+1,3) = src2Ds[i][j]->y * prjMat[i](2,3) - prjMat[i](0,3);
+       			A(i*2+1,0) = (*src2Ds[i])[j]->y * (*prjMats[i])(2,0) - (*prjMats[i])(0,0);
+        		A(i*2+1,1) = (*src2Ds[i])[j]->y * (*prjMats[i])(2,1) - (*prjMats[i])(0,1);
+        		A(i*2+1,2) = (*src2Ds[i])[j]->y * (*prjMats[i])(2,2) - (*prjMats[i])(0,2);
+        		A(i*2+1,3) = (*src2Ds[i])[j]->y * (*prjMats[i])(2,3) - (*prjMats[i])(0,3);
     		}
     		A.SVD2(U,D,V);
-			X = SubMat(0,3,3,3);
+			X = V.SubMat(0,3,3,3);
 			if (X(3,0) == 0)
 				res3D.push_back(NULL);
 			else
