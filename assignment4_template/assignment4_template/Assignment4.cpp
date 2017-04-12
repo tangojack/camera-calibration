@@ -111,23 +111,49 @@ BOOL CCamera::Calibrate(const vector<C2DPoint*>& src2D, const vector<C3DPoint*>&
 
     // Step 3: Using the estimated plane-to-plane projectivities, assign 3D coordinates
     //         to all the detected corners on the calibration pattern
-    vector<C3DPoint*> corners3D;
-    vector<C2DPoint*> corners2D;
-    CMatrix<double> 3Dxz(3,1);
-    CMatrix<double> 2Dxz(3,1);
-    3Dxz(2,0) = 1;
-    double u;
-    double v;
-    double threshold;
-    for (int i = 0; i < src3Dxz.size(); i++){
-        3Dxz(0,0) = src3Dxz[i]->x;
-        3Dxz(1,0) = src3Dxz[i]->z;
-        2Dxz = projXZ * 3Dxz;
+
+    vector<C3DPoint*> 3DCornerXZ;
+    for (int i = 0; i < 5; i++){
+    	for (int j = 0; j < 4; j++){
+    		C3DPoint* n = new C3DPoint();
+    		n->x = 0.5 + (i*2);
+    		n->y = 0;
+    		n->z = 0.5 + (j*2);
+    		3DCornerXZ.push_back(n);
+    	}
+    }
+    vector<C3DPoint*> 3DCornerYZ;
+    for (int i = 0; i < 5; i++){
+    	for (int j = 0; j < 4; j++){
+    		C3DPoint* n = new C3DPoint();
+    		n->x = 0;
+    		n->y = 0.5 + (i*2);
+    		n->z = 0.5 + (j*2);
+    		3DCornerXZ.push_back(n);
+    	}
+    }
+    vector<C2DPoint*> 2DCornerFakeXZ;
+    //Apply the plane projection
+    for(int i = 0; i < 3DCornerXZ.size(); i++){
+    	CMatrix<double> temp(3,1);
+    	temp(0,0) = 3DCornerXZ[i]->x;
+    	temp(1,0) = 3DCornerXZ[i]->y;
+    	temp(2,0) = 3DCornerXZ[i]->z;
+		
+		CMatrix<double> 2Dxz(3,1);
+    	2Dxz = projXZ * temp;
         u = 2Dxz(0,0)/2Dxz(2,0);
         v = 2Dxz(1,0)/2Dxz(2,0);
+
+        2DCornerFakeXZ.push_back(new C2DPoint(u,v));
+    }
+    double threshold = 10;
+    for (int i = 0; i < 2DCornerFakeXZ.size(); i++){
+        u = 2DCornerFakeXZ[i]->x;
+        v = 2DCornerFakeXZ[i]->y;
         for (int j = 0; j < corners.size(); j++){
             if (corners[j]->x - u < threshold && corners[j]->y - v < threshold){
-                corners3D.push_back(src3Dxz[i]);
+                corners3D.push_back(3DCornerXZ[i]);
             }
         }
     }
@@ -159,10 +185,38 @@ void CCamera::Decompose(const CMatrix<double>& prjMatrix, CMatrix<double>& prjK,
     
     // Step 1: Decompose the 3x3 sub-matrix composed of the first 3 columns of
     //         prjMatrix into the product of K and R using QR decomposition
+    CMatrix<double>	temp(3,3), trans(3,1);
+    CMatrix<double> Q(3,3), Rinv(3,3), Rdash(3,3), K(3,3);
+    temp = prjMatrix.SubMat(0,2,0,2);
+    T = prjMatrix.SubMat(0,2,3,3);
+    temp = temp.Inverse();
+    temp.QR(Q,Rdash);
+    R = Q.Transpose();
+    K = Rdash.Inverse();
 
     // Step 2: Compute the translation vector T from the last column of prjMatrix
 
     // Step 3: Normalize the 3x3 camera calibration matrix K
+    if (K(2,2) != 1){
+    	for (int i = 0; i < 3; i++){
+        	for (int j = 0; j < 3; j++){
+            	K(i,j) = K(i,j)/K(2,2);
+        	}
+    	}
+    }
+    if (K(0,0) < 0){
+    	K(0,0) = K(0,0) * -1;
+    	for (int i = 0; i < 3; i++){
+        	R(0,i) = R(0,i) * -1;
+    	}
+    }
+    if (K(1,1) < 0){
+    	K(0,1) = K(0,1) * -1;
+    	K(1,1) = K(1,1) * -1;
+    	for (int i = 0; i < 3; i++){
+        	R(1,i) = R(1,i) * -1;
+    	}
+    }
 
     return;
 }
@@ -199,6 +253,7 @@ void CCamera::Triangulate(const vector<CMatrix<double>*>& prjMats, const vector<
 
     //////////////////////////
     // Begin your code here
+		
 
     return;
 }
