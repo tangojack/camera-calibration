@@ -253,8 +253,32 @@ void CCamera::Triangulate(const vector<CMatrix<double>*>& prjMats, const vector<
 
     //////////////////////////
     // Begin your code here
-		
+    vector<CMatrix<double>*> prjMatsInv;
+    prjMatsInv.push_back(prjMats[0].Inverse());
+    prjMatsInv.push_back(prjMats[1].Inverse());
 
+    for (int j = 0; j < 8; i++){
+		CMatrix<double> A(4,4), U, D, V;
+		if(src2Ds[0][j] != NULL && src2Ds[1][j] != NULL){
+  			for (int i = 0; i < 2 ; i++){
+        		A(i*2,0) = src2Ds[i][j]->x * prjMat[i](2,0) - prjMat[i](0,0);
+        		A(i*2,1) = src2Ds[i][j]->x * prjMat[i](2,1) - prjMat[i](0,1);
+        		A(i*2,2) = src2Ds[i][j]->x * prjMat[i](2,2) - prjMat[i](0,2);
+        		A(i*2,3) = src2Ds[i][j]->x * prjMat[i](2,3) - prjMat[i](0,3);
+        	
+       			A(i*2+1,0) = src2Ds[i][j]->y * prjMat[i](2,0) - prjMat[i](0,0);
+        		A(i*2+1,1) = src2Ds[i][j]->y * prjMat[i](2,1) - prjMat[i](0,1);
+        		A(i*2+1,2) = src2Ds[i][j]->y * prjMat[i](2,2) - prjMat[i](0,2);
+        		A(i*2+1,3) = src2Ds[i][j]->y * prjMat[i](2,3) - prjMat[i](0,3);
+    		}
+    		A.SVD2(U,D,V);
+			X = SubMat(0,3,3,3);
+			if (X(3,0) == 0)
+				res3D.push_back(NULL);
+			else
+				res3D.push_back(new C3DPoint(X(0,0), X(1,0), X(2,0), X(3,0)));
+		}
+	}
     return;
 }
 
