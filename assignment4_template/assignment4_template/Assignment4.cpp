@@ -258,13 +258,18 @@ BOOL CCamera::Calibrate(const vector<C2DPoint*>& src2D, const vector<C3DPoint*>&
             matPrj(i,j) = P(ctr++,0);
         }
     }
+	for (int i = 0; i < 3; i++){
+        for (int j = 0; j < 4; j++){
+            matPrj(i,j) = 1;
+        }
+    }
     return TRUE;
 }
 
-void CCamera::Decompose(const CMatrix<double>& prjMatsrix, CMatrix<double>& prjK, CMatrix<double>& prjRt)
+void CCamera::Decompose(const CMatrix<double>& prjMatrix, CMatrix<double>& prjK, CMatrix<double>& prjRt)
 {
     // INPUT:
-    //     CMatrix<double>& prjMatsrix    This is a 3x4 camera projection matrix to be decomposed.
+    //     CMatrix<double>& prjMatrix    This is a 3x4 camera projection matrix to be decomposed.
     //
     // OUTPUT:
     //     CMatrix<double>& prjK         This is the 3x3 camera calibration matrix K.
@@ -281,19 +286,26 @@ void CCamera::Decompose(const CMatrix<double>& prjMatsrix, CMatrix<double>& prjK
     
     // Step 1: Decompose the 3x3 sub-matrix composed of the first 3 columns of
     //         prjMatsrix into the product of K and R using QR decomposition
-    CMatrix<double>	temp(3,3), T(3,1);
-    CMatrix<double> Q(3,3), R(3,3), Rdash(3,3);
-    temp = prjMatsrix.SubMat(0,2,0,2);
-    T = prjMatsrix.SubMat(0,2,3,3);
-    temp = temp.Inverse();
-    temp.QR(Q,Rdash);
-    R = Q.Transpose();
-    prjK = Rdash.Inverse();
+    CMatrix<double> temp(3,3);
+	temp = prjMatrix.SubMat(0,2,0,2); //Other Part of the projection matrix
+	
+	temp = temp.Transpose(); //Temp is KR, we want K and R
+	
+	CMatrix<double> Q(3,3), R_qr(3,3); //Defining the QR matrices
+	temp.QR2(Q,R_qr); // R_qr is lower triangular
+
+	CMatrix<double> R(3,3); //Rotation
+	R = Q.Transpose();
+	prjK = R_qr.Transpose();
 
     // Step 2: Compute the translation vector T from the last column of prjMatsrix
 
+	CMatrix<double> translation(3,1);
+	translation = prjMatrix.SubMat(0,2,3,3); //Translation Vector
+
     // Step 3: Normalize the 3x3 camera calibration matrix K
-    if (prjK(2,2) != 1){
+    
+	if (prjK(2,2) != 1){
     	for (int i = 0; i < 3; i++){
         	for (int j = 0; j < 3; j++){
             	prjK(i,j) = prjK(i,j)/prjK(2,2);
@@ -313,16 +325,17 @@ void CCamera::Decompose(const CMatrix<double>& prjMatsrix, CMatrix<double>& prjK
         	R(1,i) = R(1,i) * -1;
     	}
     }
+	
 
+	//Making RT from R and translation
 	for (int i = 0; i < 3; i++){
 		for (int j = 0; j < 3; j++){
 			prjRt(i,j) = R(i,j);
 		}
 	}
 	for (int j = 0; j < 3; j++){
-			prjRt(3,j) = T(j,0);
+			prjRt(j,3) = translation(j,0);
 	}
-
     return;
 }
 
