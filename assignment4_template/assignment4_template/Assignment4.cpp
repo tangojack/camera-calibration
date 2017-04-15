@@ -69,7 +69,8 @@ BOOL CCamera::Calibrate(const vector<C2DPoint*>& src2D, const vector<C3DPoint*>&
     }
     // Step 2: Estimate a plane-to-plane projectivity for each of the calibration planes
     //         using the input 2D/3D point pairs
-    CMatrix<double> b(8,1);
+  
+	CMatrix<double> b(8,1);
     CMatrix<double> A;
 	A.SetSize(2*src3Dxz.size(),8,0);
     for (int i = 0; i < src3Dxz.size(); i++){
@@ -81,23 +82,25 @@ BOOL CCamera::Calibrate(const vector<C2DPoint*>& src2D, const vector<C3DPoint*>&
         A(i*2,5) = 0;
         A(i*2,6) = -src2Dxz[i]->x * src3Dxz[i]->x;
         A(i*2,7) = -src2Dxz[i]->x * src3Dxz[i]->z;
-        b(i*2,0) = -src2Dxz[i]->x;
+        b(i*2,0) = src2Dxz[i]->x;
         
-        A(i*2+1,0) = src3Dxz[i]->x;
-        A(i*2+1,1) = src3Dxz[i]->z;
-        A(i*2+1,2) = 1;
-        A(i*2+1,3) = 0;
-        A(i*2+1,4) = 0;
-        A(i*2+1,5) = 0;
-        A(i*2+1,6) = -src2Dxz[i]->x * src3Dxz[i]->x;
-        A(i*2+1,7) = -src2Dxz[i]->x * src3Dxz[i]->z;
-        b(i*2+1,0) = -src2Dxz[i]->y;
+        A(i*2+1,0) = 0;
+        A(i*2+1,1) = 0;
+        A(i*2+1,2) = 0;
+        A(i*2+1,3) = src3Dxz[i]->x;
+        A(i*2+1,4) = src3Dxz[i]->z;
+        A(i*2+1,5) = 1;
+        A(i*2+1,6) = -src2Dxz[i]->y * src3Dxz[i]->x;
+        A(i*2+1,7) = -src2Dxz[i]->y * src3Dxz[i]->z;
+        b(i*2+1,0) = src2Dxz[i]->y;
     }
     CMatrix<double> Atran = A.Transpose();
     CMatrix<double> temp = Atran * A;
     CMatrix<double> Across = temp.Inverse() * Atran;
     CMatrix<double> pXZ = Across * b;
     
+	
+	
     int ctr = 0;
     CMatrix<double> projXZ(3,3);
     projXZ(2,2) = 1; 
@@ -108,7 +111,8 @@ BOOL CCamera::Calibrate(const vector<C2DPoint*>& src2D, const vector<C3DPoint*>&
             projXZ(i,j) = pXZ(ctr++,0);
         }
     }
-
+	
+		
 	A.SetSize(2*src3Dyz.size(),8,0);
     for (int i = 0; i < src3Dyz.size(); i++){
         A(i*2,0) = src3Dyz[i]->y;
@@ -117,19 +121,19 @@ BOOL CCamera::Calibrate(const vector<C2DPoint*>& src2D, const vector<C3DPoint*>&
         A(i*2,3) = 0;
         A(i*2,4) = 0;
         A(i*2,5) = 0;
-        A(i*2,6) = -src2Dyz[i]->y * src3Dyz[i]->y;
-        A(i*2,7) = -src2Dyz[i]->y * src3Dyz[i]->z;
-        b(i*2,0) = -src2Dxz[i]->y;
+        A(i*2,6) = -src2Dyz[i]->x * src3Dyz[i]->y;
+        A(i*2,7) = -src2Dyz[i]->x * src3Dyz[i]->z;
+        b(i*2,0) = src2Dyz[i]->x;
         
-        A(i*2+1,0) = src3Dyz[i]->y;
-        A(i*2+1,1) = src3Dyz[i]->z;
-        A(i*2+1,2) = 1;
-        A(i*2+1,3) = 0;
-        A(i*2+1,4) = 0;
-        A(i*2+1,5) = 0;
-        A(i*2+1,6) = -src2Dyz[i]->x * src3Dyz[i]->x;
-        A(i*2+1,7) = -src2Dyz[i]->x * src3Dyz[i]->z;
-        b(i*2+1,0) = -src2Dyz[i]->y;
+        A(i*2+1,0) = 0;
+        A(i*2+1,1) = 0;
+        A(i*2+1,2) = 0;
+        A(i*2+1,3) = src3Dyz[i]->y;
+        A(i*2+1,4) = src3Dyz[i]->z;
+        A(i*2+1,5) = 1;
+        A(i*2+1,6) = -src2Dyz[i]->y * src3Dyz[i]->y;
+        A(i*2+1,7) = -src2Dyz[i]->y * src3Dyz[i]->z;
+        b(i*2+1,0) = src2Dyz[i]->y;
     }
     Atran = A.Transpose();
     temp = Atran * A;
@@ -146,10 +150,16 @@ BOOL CCamera::Calibrate(const vector<C2DPoint*>& src2D, const vector<C3DPoint*>&
             projYZ(i,j) = pYZ(ctr++,0);
         }
     }
-
-    // Step 3: Using the estimated plane-to-plane projectivities, assign 3D coordinates
+	/*ctr = 0;
+	for (int i = 0; i < 3; i++){
+        for (int j = 0; j < 3; j++){
+            matPrj(i,j) = projYZ(i,j);
+        }
+    }*/
+    
+	// Step 3: Using the estimated plane-to-plane projectivities, assign 3D coordinates
     //         to all the detected corners on the calibration pattern
-
+	
     vector<C3DPoint*> CornerXZ3D;
     for (int i = 0; i < 5; i++){
     	for (int j = 0; j < 4; j++){
@@ -157,17 +167,17 @@ BOOL CCamera::Calibrate(const vector<C2DPoint*>& src2D, const vector<C3DPoint*>&
     		CornerXZ3D.push_back(n);
     	}
     }
+	
     vector<C3DPoint*> CornerYZ3D;
     for (int i = 0; i < 5; i++){
     	for (int j = 0; j < 4; j++){
     		C3DPoint* n = new C3DPoint(0, 0.5 + (i*2), 0.5 + (j*2));
-    		CornerXZ3D.push_back(n);
+    		CornerYZ3D.push_back(n);
     	}
     }
-
+	
     vector<C2DPoint*> CornerFakeXZ2D;
 	double u, v;
-	double threshold = 10;
 	//Apply the plane projection
     for(int i = 0; i < CornerXZ3D.size(); i++){
     	CMatrix<double> temp(3,1);
@@ -177,10 +187,12 @@ BOOL CCamera::Calibrate(const vector<C2DPoint*>& src2D, const vector<C3DPoint*>&
 		
 		CMatrix<double> xz2D(3,1);
     	xz2D = projXZ * temp;
-        u = xz2D(0,0)/xz2D(2,0);
-        v = xz2D(1,0)/xz2D(2,0);
+        u = xz2D(0,0);
+        v = xz2D(1,0);
         CornerFakeXZ2D.push_back(new C2DPoint(u,v));
     }
+	
+
 	vector<C2DPoint*> CornerFakeYZ2D;
 	for(int i = 0; i < CornerYZ3D.size(); i++){
     	CMatrix<double> temp(3,1);
@@ -189,28 +201,36 @@ BOOL CCamera::Calibrate(const vector<C2DPoint*>& src2D, const vector<C3DPoint*>&
     	temp(2,0) = CornerYZ3D[i]->z;
 		
 		CMatrix<double> yz2D(3,1);
-    	yz2D = projXZ * temp;
-        u = yz2D(0,0)/yz2D(2,0);
-        v = yz2D(1,0)/yz2D(2,0);
+    	yz2D = projYZ * temp;
+        u = yz2D(0,0);
+        v = yz2D(1,0);
         CornerFakeYZ2D.push_back(new C2DPoint(u,v));
     }
 	
+
 	vector<C3DPoint*> corners3D;
+	vector<C2DPoint*> corners2D;
+	int threshold = 25;
+	int yo = 0;
     for (int i = 0; i < CornerFakeXZ2D.size(); i++){
         u = CornerFakeXZ2D[i]->x;
         v = CornerFakeXZ2D[i]->y;
         for (int j = 0; j < corners.size(); j++){
-            if (corners[j]->x - u < threshold && corners[j]->y - v < threshold){
-                corners3D.push_back(CornerXZ3D[i]);
+            if (corners[j]->x - u < threshold && corners[j]->x - u > -threshold && corners[j]->y - v < threshold && corners[j]->y - v > -threshold){
+				yo++;
+				corners3D.push_back(CornerXZ3D[i]);
+				corners2D.push_back(corners[j]);
             }
         }
     }
-	vector<C2DPoint*> corners2D;
+	
+	
     for (int i = 0; i < CornerFakeYZ2D.size(); i++){
         u = CornerFakeYZ2D[i]->x;
         v = CornerFakeYZ2D[i]->y;
         for (int j = 0; j < corners.size(); j++){
-            if (corners[j]->x - u < threshold && corners[j]->y - v < threshold){
+            if (corners[j]->x - u < threshold && corners[j]->x - u > -threshold && corners[j]->y - v < threshold && corners[j]->y - v > -threshold){
+				yo++;
                 corners3D.push_back(CornerYZ3D[i]);
 				corners2D.push_back(corners[j]);
             }
@@ -231,7 +251,7 @@ BOOL CCamera::Calibrate(const vector<C2DPoint*>& src2D, const vector<C3DPoint*>&
 		A(i*2,7) = 0;
         A(i*2,8) = -corners2D[i]->x * corners3D[i]->x;
         A(i*2,9) = -corners2D[i]->x * corners3D[i]->y;
-		A(i*2,10) = -corners2D[i]->x * corners3D[i]->y;
+		A(i*2,10) = -corners2D[i]->x * corners3D[i]->z;
         A(i*2,11) = -corners2D[i]->x;
         
         A(i*2+1,0) = 0;
@@ -242,25 +262,20 @@ BOOL CCamera::Calibrate(const vector<C2DPoint*>& src2D, const vector<C3DPoint*>&
         A(i*2+1,5) = corners3D[i]->y;
 		A(i*2+1,6) = corners3D[i]->z;
         A(i*2+1,7) = 1;
-		A(i*2+1,8) = -corners2D[i]->x * corners3D[i]->x;
-        A(i*2+1,9) = -corners2D[i]->x * corners3D[i]->y;
-		A(i*2+1,10) = -corners2D[i]->x * corners3D[i]->y;
-        A(i*2+1,11) = -corners2D[i]->x;
+		A(i*2+1,8) = -corners2D[i]->y * corners3D[i]->x;
+        A(i*2+1,9) = -corners2D[i]->y * corners3D[i]->y;
+		A(i*2+1,10) = -corners2D[i]->y * corners3D[i]->z;
+        A(i*2+1,11) = -corners2D[i]->y;
     }
 	A.SVD2(U,D,V);
 	P = V.SubMat(0,11,11,11);
 	ctr = 0;
-    matPrj(2,3) = 1; 
+    matPrj(2,3) = yo;
     for (int i = 0; i < 3; i++){
         for (int j = 0; j < 4; j++){
             if (i == 2 && j == 3)
                 break;
             matPrj(i,j) = P(ctr++,0);
-        }
-    }
-	for (int i = 0; i < 3; i++){
-        for (int j = 0; j < 4; j++){
-            matPrj(i,j) = 1;
         }
     }
     return TRUE;
