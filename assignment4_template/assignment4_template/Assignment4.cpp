@@ -150,12 +150,6 @@ BOOL CCamera::Calibrate(const vector<C2DPoint*>& src2D, const vector<C3DPoint*>&
             projYZ(i,j) = pYZ(ctr++,0);
         }
     }
-	/*ctr = 0;
-	for (int i = 0; i < 3; i++){
-        for (int j = 0; j < 3; j++){
-            matPrj(i,j) = projYZ(i,j);
-        }
-    }*/
     
 	// Step 3: Using the estimated plane-to-plane projectivities, assign 3D coordinates
     //         to all the detected corners on the calibration pattern
@@ -187,8 +181,8 @@ BOOL CCamera::Calibrate(const vector<C2DPoint*>& src2D, const vector<C3DPoint*>&
 		
 		CMatrix<double> xz2D(3,1);
     	xz2D = projXZ * temp;
-        u = xz2D(0,0);
-        v = xz2D(1,0);
+        u = xz2D(0,0) / xz2D(2,0);
+        v = xz2D(1,0) / xz2D(2,0);
         CornerFakeXZ2D.push_back(new C2DPoint(u,v));
     }
 	
@@ -202,37 +196,33 @@ BOOL CCamera::Calibrate(const vector<C2DPoint*>& src2D, const vector<C3DPoint*>&
 		
 		CMatrix<double> yz2D(3,1);
     	yz2D = projYZ * temp;
-        u = yz2D(0,0);
-        v = yz2D(1,0);
+        u = yz2D(0,0) / yz2D(2,0);
+        v = yz2D(1,0) / yz2D(2,0);
         CornerFakeYZ2D.push_back(new C2DPoint(u,v));
     }
-	
-
 	vector<C3DPoint*> corners3D;
 	vector<C2DPoint*> corners2D;
-	int threshold = 25;
-	int yo = 0;
-    for (int i = 0; i < CornerFakeXZ2D.size(); i++){
+	int threshold = 5;
+    
+	for (int i = 0; i < CornerFakeXZ2D.size(); i++){
         u = CornerFakeXZ2D[i]->x;
         v = CornerFakeXZ2D[i]->y;
         for (int j = 0; j < corners.size(); j++){
             if (corners[j]->x - u < threshold && corners[j]->x - u > -threshold && corners[j]->y - v < threshold && corners[j]->y - v > -threshold){
-				yo++;
 				corners3D.push_back(CornerXZ3D[i]);
 				corners2D.push_back(corners[j]);
+				break;
             }
         }
     }
-	
-	
     for (int i = 0; i < CornerFakeYZ2D.size(); i++){
         u = CornerFakeYZ2D[i]->x;
         v = CornerFakeYZ2D[i]->y;
         for (int j = 0; j < corners.size(); j++){
             if (corners[j]->x - u < threshold && corners[j]->x - u > -threshold && corners[j]->y - v < threshold && corners[j]->y - v > -threshold){
-				yo++;
                 corners3D.push_back(CornerYZ3D[i]);
 				corners2D.push_back(corners[j]);
+				break;
             }
         }
     }
@@ -270,12 +260,10 @@ BOOL CCamera::Calibrate(const vector<C2DPoint*>& src2D, const vector<C3DPoint*>&
 	A.SVD2(U,D,V);
 	P = V.SubMat(0,11,11,11);
 	ctr = 0;
-    matPrj(2,3) = yo;
+	
     for (int i = 0; i < 3; i++){
         for (int j = 0; j < 4; j++){
-            if (i == 2 && j == 3)
-                break;
-            matPrj(i,j) = P(ctr++,0);
+            matPrj(i,j) = P(ctr++,0) / P(11,0);
         }
     }
     return TRUE;
