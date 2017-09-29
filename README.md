@@ -1,3 +1,14 @@
+# Camera Calibration and 3D Reconstruction using StereoVision
+
+1. To use the project, head to Demo/Demo_Release and open VG3DBuilder.exe
+2. Click on File, Open Projects, and go to either Projects/Sample_Reconstruction or Projects/Sample_Calibration
+3. Open the .vpj project
+4. Calibrate the cv_grid4.jpg
+5. Press F5 to make 3D Model.
+5. Go to 3D Model, and see what is constructed.
+
+# Algorithm used
+
 Calibrate Function
 1. I've found out which points are on the XZ plane by checking if the y coordinate of the 3D point is zero and which points are on
 the YZ plane by checking if the by checking if the x coordinate of the 3D point is zero
